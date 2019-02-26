@@ -22,12 +22,18 @@ type Supfile struct {
 	Version  string   `yaml:"version"`
 }
 
+//Host contains an address and env vars associated with this host
+type Host struct {
+	Address string  `yaml:"address"`
+	Env     EnvList `yaml:"env"`
+}
+
 // Network is group of hosts with extra custom env vars.
 type Network struct {
-	Env       EnvList  `yaml:"env"`
-	Inventory string   `yaml:"inventory"`
-	Hosts     []string `yaml:"hosts"`
-	Bastion   string   `yaml:"bastion"` // Jump host for the environment
+	Env       EnvList `yaml:"env"`
+	Inventory string  `yaml:"inventory"`
+	Hosts     []Host  `yaml:"hosts"`
+	Bastion   string  `yaml:"bastion"` // Jump host for the environment
 
 	// Should these live on Hosts too? We'd have to change []string to struct, even in Supfile.
 	User         string // `yaml:"user"`
@@ -329,7 +335,7 @@ func NewSupfile(data []byte) (*Supfile, error) {
 
 // ParseInventory runs the inventory command, if provided, and appends
 // the command's output lines to the manually defined list of hosts.
-func (n Network) ParseInventory() ([]string, error) {
+func (n Network) ParseInventory() ([]Host, error) {
 	if n.Inventory == "" {
 		return nil, nil
 	}
@@ -343,10 +349,10 @@ func (n Network) ParseInventory() ([]string, error) {
 		return nil, err
 	}
 
-	var hosts []string
+	var hosts []Host
 	buf := bytes.NewBuffer(output)
 	for {
-		host, err := buf.ReadString('\n')
+		address, err := buf.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -354,13 +360,13 @@ func (n Network) ParseInventory() ([]string, error) {
 			return nil, err
 		}
 
-		host = strings.TrimSpace(host)
+		address = strings.TrimSpace(address)
 		// skip empty lines and comments
-		if host == "" || host[:1] == "#" {
+		if address == "" || address[:1] == "#" {
 			continue
 		}
 
-		hosts = append(hosts, host)
+		hosts = append(hosts, Host{Address: address})
 	}
 	return hosts, nil
 }
